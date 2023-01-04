@@ -11,12 +11,13 @@ services:
       MYSQL_PASSWORD: db_user_pass
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      timeout: 10s
-      retries: 10
+      timeout: 5s
+      retries: 100
     ports:
       - "6033:3306"
     volumes:
       - dbdata:/var/lib/mysql
+
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin
@@ -29,14 +30,15 @@ services:
     restart: always
     ports:
       - 8081:80
+
   symfony:
     build:
-      context: ./
+      context: ./symfony
       dockerfile: Dockerfile
     working_dir: /
     container_name: symfony
     env_file:
-      - ./docker/.env
+      - ./.env
     links:
       - db
     volumes:
@@ -47,5 +49,32 @@ services:
       db:
         condition: service_healthy
     restart: always
+
+  ngrok:
+    image: shkoliar/ngrok:latest
+    container_name: ngrok
+    ports:
+      - 4551:4551
+    links:
+      - symfony
+    environment:
+      - DOMAIN=symfony
+      - PROTOCOL=http
+      - PORT=80
+      - REGION=eu
+      - AUTH_TOKEN=${NGROK_AUTH_TOKEN}
+      - BIND_TLS=true
+
+  project-configurator:
+    build:
+      context: ./projectconfigurator
+      dockerfile: Dockerfile
+    working_dir: /projectconfigurator
+    container_name: projectconfigurator
+    env_file:
+      - ./.env
+    volumes:
+      - .:/usr/src/app
+
 volumes:
   dbdata:
